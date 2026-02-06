@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── User ───────────────────────────────────────────────
+model User {
+  id           String   @id @default(uuid())
+  slackUserId  String   @unique @map("slack_user_id")
+  displayName  String?  @map("display_name")
+  avatarUrl    String?  @map("avatar_url")
+  email        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  userWorkspaces UserWorkspace[]
+  messages       Message[]
+  feedbackRuns   FeedbackRun[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+// ─── Workspace ──────────────────────────────────────────
+model Workspace {
+  id          String   @id @default(uuid())
+  slackTeamId String   @unique @map("slack_team_id")
+  name        String
+  iconUrl     String?  @map("icon_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  userWorkspaces UserWorkspace[]
+  channels       Channel[]
+
+  @@map("workspaces")
+}
+
+// ─── UserWorkspace (join table + token storage) ─────────
+model UserWorkspace {
+  id                   String    @id @default(uuid())
+  userId               String    @map("user_id")
+  workspaceId          String    @map("workspace_id")
+  slackAccessTokenEnc  String    @map("slack_access_token_enc")
+  tokenExpiresAt       DateTime? @map("token_expires_at")
+  scope                String?
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@map("user_workspaces")
+}
+
+// ─── Channel ────────────────────────────────────────────
+model Channel {
+  id             String    @id @default(uuid())
+  workspaceId    String    @map("workspace_id")
+  slackChannelId String    @map("slack_channel_id")
+  name           String
+  isPrivate      Boolean   @default(false) @map("is_private")
+  isDm           Boolean   @default(false) @map("is_dm")
+  lastSyncedAt   DateTime? @map("last_synced_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@unique([workspaceId, slackChannelId])
+  @@map("channels")
+}
+
+// ─── Message (own posts only) ───────────────────────────
+model Message {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  channelId       String    @map("channel_id")
+  slackTs         String    @map("slack_ts")
+  slackThreadTs   String?   @map("slack_thread_ts")
+  text            String
+  hasAttachments  Boolean   @default(false) @map("has_attachments")
+  isEdited        Boolean   @default(false) @map("is_edited")
+  slackPostedAt   DateTime  @map("slack_posted_at")
+  isDeleted       Boolean   @default(false) @map("is_deleted")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel      Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  feedbackRuns FeedbackRun[]
+
+  @@unique([channelId, slackTs])
+  @@map("messages")
+}
+
+// ─── FeedbackPreset (mode definitions) ──────────────────
+model FeedbackPreset {
+  id             String   @id @default(uuid())
+  slug           String   @unique
+  name           String
+  description    String?
+  promptTemplate String   @map("prompt_template")
+  displayOrder   Int      @map("display_order")
+  isSystem       Boolean  @default(true) @map("is_system")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  feedbackRuns FeedbackRun[]
+
+  @@map("feedback_presets")
+}
+
+// ─── FeedbackRun (generated results) ────────────────────
+model FeedbackRun {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  messageId    String   @map("message_id")
+  presetId     String   @map("preset_id")
+  inputText    String   @map("input_text")
+  outputJson   Json     @map("output_json")
+  modelName    String   @map("model_name")
+  inputTokens  Int?     @map("input_tokens")
+  outputTokens Int?     @map("output_tokens")
+  temperature  Float?
+  durationMs   Int?     @map("duration_ms")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  preset  FeedbackPreset @relation(fields: [presetId], references: [id])
+
+  @@map("feedback_runs")
+}
+
+// ─── AuditLog ───────────────────────────────────────────
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?  @map("user_id")
+  action       String
+  resourceType String?  @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
