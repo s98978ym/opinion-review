@@ -1,4 +1,3 @@
-import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 
@@ -7,7 +6,13 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  let session: { user?: { name?: string | null; image?: string | null } } | null = null;
+  try {
+    const { auth } = await import("@/lib/auth");
+    session = await auth();
+  } catch {
+    // DB/auth not available - redirect to login
+  }
   if (!session?.user) {
     redirect("/login");
   }

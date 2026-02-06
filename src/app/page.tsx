@@ -1,9 +1,16 @@
-import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 export default async function Home() {
-  const session = await auth();
-  if (session?.user) {
+  let isAuthenticated = false;
+  try {
+    const { auth } = await import("@/lib/auth");
+    const session = await auth();
+    isAuthenticated = !!session?.user;
+  } catch {
+    // DB/auth not available - fall through to login redirect
+  }
+
+  if (isAuthenticated) {
     redirect("/channels");
   }
   redirect("/login");

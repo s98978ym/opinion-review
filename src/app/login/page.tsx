@@ -1,10 +1,16 @@
-import { auth, signIn } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage() {
-  const session = await auth();
-  if (session?.user) {
-    redirect("/channels");
+  try {
+    const { auth } = await import("@/lib/auth");
+    const session = await auth();
+    if (session?.user) {
+      redirect("/channels");
+    }
+  } catch (e: unknown) {
+    // redirect() throws a special error that must be re-thrown
+    if (e && typeof e === "object" && "digest" in e) throw e;
+    // DB/auth not available - show login page anyway
   }
 
   return (
@@ -24,6 +30,7 @@ export default async function LoginPage() {
         <form
           action={async () => {
             "use server";
+            const { signIn } = await import("@/lib/auth");
             await signIn("slack", { redirectTo: "/channels" });
           }}
         >
