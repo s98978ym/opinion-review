@@ -71,14 +71,55 @@ A の実行環境で C が利用できないとき、A が原因不明のエラ�
 - 「この関数はどのインフラに依存しているか」を常に意識する
 - 依存チェーンの途中が壊れた場合の挙動をテスト or 想定する
 
+### R5: Vercel デプロイ時のランタイム環境差異に対応する
+**原因**: ローカルのビルド環境と Vercel のサーバーレスランタイム環境は異なる。
+ビルド時に生成されるネイティブバイナリがランタイムで動かないと、サイレントに失敗する。
+
+**具体的な問題**:
+- Prisma の query engine バイナリはビルド環境向け（`native`）のみ生成される
+- Vercel のランタイムは `rhel-openssl-3.0.x` を要求する
+- バイナリ不一致時、Prisma が起動できずランタイムエラー → Vercel が 404 にマスクする
+
+**対策**:
+- `prisma/schema.prisma` に `binaryTargets = ["native", "rhel-openssl-3.0.x"]` を設定
+- ランタイム依存のモジュールは、デプロイ先環境のターゲットを必ず確認する
+
+### R6: Next.js 16 では middleware.ts を proxy.ts にリネームする
+**背景**: Next.js 16 で `middleware.ts` は非推奨。`proxy.ts` に移行が必要。
+- 関数名: `middleware()` → `proxy()` に変更
+- proxy.ts は Node.js ランタイムで動作（Edge ではない）
+- Vercel ビルドインフラが非推奨 middleware を正しく扱えない可能性がある
+
+### R7: モジュールレベルのインスタンス生成は環境変数の存在を前提にしない
+**原因**: `new PrismaClient()` がモジュールトップレベルで実行される。
+`DATABASE_URL` がない環境ではここで例外が発生し、モジュール全体の import が失敗する。
+
+**対策**: Proxy パターンを使い、モジュール読み込みは成功させ、実際のクエリ時に失敗させる。
+
+```typescript
+// GOOD: モジュール読み込みは安全、クエリ時にエラー
+function createPrismaClient(): PrismaClient {
+  if (!process.env.DATABASE_URL) {
+    return new Proxy({} as PrismaClient, {
+      get(_target, prop) {
+        if (typeof prop === "symbol" || prop === "then") return undefined;
+        throw new Error(`DATABASE_URL is not set.`);
+      },
+    });
+  }
+  return new PrismaClient();
+}
+```
+
 ## Tech Constraints
 
 - **Prisma 7 は使わない**: Turbopack と非互換（ES module の `import.meta.url`）
-- **Edge Runtime で Node.js モジュール不可**: middleware では cookie ベースの簡易チェックのみ
+- **Prisma binaryTargets**: Vercel デプロイ時は `["native", "rhel-openssl-3.0.x"]` を指定
 - **Google Fonts 不使用**: ビルド環境にネットワークアクセスがない
 - **Prisma Json 型**: `Record<string, unknown>` → `as Prisma.InputJsonValue` でキャスト
 - **TypeScript 二重キャスト**: `(obj as unknown as TargetType)` を使う
 - **pnpm 使用**: `pnpm approve-builds` がネイティブ依存で必要な場合あり
+- **proxy.ts**: Next.js 16 では middleware.ts ではなく proxy.ts を使う
 
 ## Branch
 Development branch: `claude/enable-teammate-mode-ZDx9T`
