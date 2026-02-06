@@ -3,7 +3,14 @@ import type { NextAuthConfig } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 
+// Vercel プレビューデプロイではデプロイごとに URL が変わるため、
+// AUTH_URL が未設定の場合は安定した本番 URL を使用する
+if (!process.env.AUTH_URL && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+  process.env.AUTH_URL = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+}
+
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   providers: [
     {
       id: "slack",
