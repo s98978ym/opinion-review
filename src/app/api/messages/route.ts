@@ -15,7 +15,8 @@ export async function GET(req: NextRequest) {
   const channelId = searchParams.get("channel_id");
   const date = searchParams.get("date"); // YYYY-MM-DD
   const cursor = searchParams.get("cursor");
-  const limit = Math.min(parseInt(searchParams.get("limit") ?? "50", 10), 100);
+  const limitRaw = parseInt(searchParams.get("limit") ?? "50", 10);
+  const limit = Number.isNaN(limitRaw) ? 50 : Math.min(Math.max(limitRaw, 1), 100);
 
   if (!channelId) return badRequest("channel_id is required");
 
@@ -27,13 +28,22 @@ export async function GET(req: NextRequest) {
     };
 
     if (date) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return badRequest("Invalid date format. Use YYYY-MM-DD");
+      }
       const dayStart = new Date(date + "T00:00:00Z");
       const dayEnd = new Date(date + "T23:59:59.999Z");
+      if (isNaN(dayStart.getTime())) return badRequest("Invalid date");
       where.slackPostedAt = { gte: dayStart, lte: dayEnd };
     }
 
     if (cursor) {
-      where.id = { lt: cursor };
+      const cursorDate = new Date(cursor);
+      if (isNaN(cursorDate.getTime())) return badRequest("Invalid cursor");
+      where.slackPostedAt = {
+        ...(typeof where.slackPostedAt === "object" ? where.slackPostedAt as Record<string, unknown> : {}),
+        lt: cursorDate,
+      };
     }
 
     const messages = await prisma.message.findMany({
@@ -58,7 +68,9 @@ export async function GET(req: NextRequest) {
         has_attachments: m.hasAttachments,
         feedback_count: m._count.feedbackRuns,
       })),
-      next_cursor: hasMore ? items[items.length - 1].id : null,
+      next_cursor: hasMore
+        ? items[items.length - 1].slackPostedAt.toISOString()
+        : null,
     });
   } catch (e) {
     console.error("GET /api/messages error:", e);

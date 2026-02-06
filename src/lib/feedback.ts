@@ -4,9 +4,9 @@ import { slackMrkdwnToPlainText } from "@/lib/slack-markdown";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = "gpt-4o-mini";
-
 const MAX_OUTPUT_TOKENS = 1000;
 const DEFAULT_TEMPERATURE = 0.3;
+const OPENAI_TIMEOUT_MS = 30_000;
 
 interface FeedbackResult {
   id: string;
@@ -37,7 +37,6 @@ export async function runFeedback(
 
   const plainText = slackMrkdwnToPlainText(message.text);
 
-  // Check minimum text length
   if (plainText.trim().length < 10) {
     throw new Error(
       "投稿が短すぎます（10文字以上の投稿でフィードバックを生成できます）",
@@ -51,20 +50,38 @@ export async function runFeedback(
 
   const startTime = Date.now();
 
-  const response = await fetch(OPENAI_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: DEFAULT_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: DEFAULT_TEMPERATURE,
-      max_tokens: MAX_OUTPUT_TOKENS,
-      response_format: { type: "json_object" },
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(OPENAI_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: DEFAULT_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        temperature: DEFAULT_TEMPERATURE,
+        max_tokens: MAX_OUTPUT_TOKENS,
+        response_format: { type: "json_object" },
+      }),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error("LLM APIがタイムアウトしました。しばらく待ってから再試行してください。");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (response.status === 429) {
+    throw new Error("LLM APIのレート制限に達しました。しばらく待ってから再試行してください。");
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
@@ -84,7 +101,6 @@ export async function runFeedback(
     outputJson = { raw: outputText, parse_error: true };
   }
 
-  // Add mode identifier
   outputJson.mode = preset.slug;
 
   const feedbackRun = await prisma.feedbackRun.create({

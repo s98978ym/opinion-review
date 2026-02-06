@@ -1,6 +1,8 @@
 import { decrypt } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
 
+const MAX_RETRIES = 3;
+
 interface SlackChannel {
   id: string;
   name: string;
@@ -24,11 +26,16 @@ async function getSlackToken(userId: string): Promise<{ token: string; workspace
     where: { userId },
     orderBy: { updatedAt: "desc" },
   });
-  if (!uw) throw new Error("No workspace connected");
+  if (!uw) throw new Error("Slackワークスペースが接続されていません");
   return { token: decrypt(uw.slackAccessTokenEnc), workspaceId: uw.workspaceId };
 }
 
-async function slackFetch(token: string, method: string, params: Record<string, string> = {}) {
+async function slackFetch(
+  token: string,
+  method: string,
+  params: Record<string, string> = {},
+  retryCount = 0,
+): Promise<Record<string, unknown>> {
   const url = new URL(`https://slack.com/api/${method}`);
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
@@ -37,23 +44,23 @@ async function slackFetch(token: string, method: string, params: Record<string, 
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Slack API error: ${res.status}`);
+
   const data = await res.json();
   if (!data.ok) {
-    if (data.error === "ratelimited") {
+    if (data.error === "ratelimited" && retryCount < MAX_RETRIES) {
       const retryAfter = parseInt(res.headers.get("Retry-After") ?? "5", 10);
-      throw new RateLimitError(retryAfter);
+      await new Promise((r) => setTimeout(r, retryAfter * 1000));
+      return slackFetch(token, method, params, retryCount + 1);
+    }
+    if (data.error === "ratelimited") {
+      throw new Error("Slack APIのレート制限に達しました。しばらく待ってから再試行してください。");
+    }
+    if (data.error === "not_authed" || data.error === "invalid_auth" || data.error === "token_revoked") {
+      throw new Error("Slackの認証が無効です。再度ログインしてください。");
     }
     throw new Error(`Slack API error: ${data.error}`);
   }
   return data;
-}
-
-export class RateLimitError extends Error {
-  retryAfter: number;
-  constructor(retryAfter: number) {
-    super(`Rate limited. Retry after ${retryAfter}s`);
-    this.retryAfter = retryAfter;
-  }
 }
 
 export async function syncChannels(userId: string) {
@@ -71,8 +78,10 @@ export async function syncChannels(userId: string) {
     if (cursor) params.cursor = cursor;
 
     const data = await slackFetch(token, "conversations.list", params);
-    channels.push(...(data.channels ?? []));
-    cursor = data.response_metadata?.next_cursor || undefined;
+    channels.push(...((data.channels as SlackChannel[]) ?? []));
+    cursor = (data.response_metadata as Record<string, string> | undefined)?.next_cursor || undefined;
+
+    if (cursor) await new Promise((r) => setTimeout(r, 200));
   } while (cursor);
 
   let count = 0;
@@ -118,10 +127,12 @@ export async function syncMessages(
     limit: "200",
   };
   if (dateFrom) {
-    params.oldest = String(new Date(dateFrom).getTime() / 1000);
+    const ts = new Date(dateFrom).getTime();
+    if (!isNaN(ts)) params.oldest = String(ts / 1000);
   }
   if (dateTo) {
-    params.latest = String(new Date(dateTo + "T23:59:59Z").getTime() / 1000);
+    const ts = new Date(dateTo + "T23:59:59Z").getTime();
+    if (!isNaN(ts)) params.latest = String(ts / 1000);
   }
 
   const messages: SlackMessage[] = [];
@@ -130,10 +141,9 @@ export async function syncMessages(
   do {
     if (cursor) params.cursor = cursor;
     const data = await slackFetch(token, "conversations.history", params);
-    messages.push(...(data.messages ?? []));
-    cursor = data.response_metadata?.next_cursor || undefined;
+    messages.push(...((data.messages as SlackMessage[]) ?? []));
+    cursor = (data.response_metadata as Record<string, string> | undefined)?.next_cursor || undefined;
 
-    // Rate limit friendly: wait 200ms between pages
     if (cursor) await new Promise((r) => setTimeout(r, 200));
   } while (cursor);
 

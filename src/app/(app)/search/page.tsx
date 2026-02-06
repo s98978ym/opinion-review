@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 interface SearchResult {
   message: {
     id: string;
     text: string;
     slack_posted_at: string;
+    channel_id: string;
     channel_name: string;
     feedback_count: number;
   };
@@ -17,7 +19,10 @@ export default function SearchPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -25,17 +30,44 @@ export default function SearchPage() {
 
     setLoading(true);
     setSearched(true);
+    setError(null);
     try {
       const res = await fetch(
         `/api/search?q=${encodeURIComponent(query)}&limit=30`,
       );
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "検索に失敗しました");
+        setResults([]);
+        return;
+      }
       const data = await res.json();
       setResults(data.results ?? []);
       setTotalCount(data.total_count ?? 0);
+      setNextCursor(data.next_cursor ?? null);
     } catch {
+      setError("ネットワークエラーが発生しました");
       setResults([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleLoadMore() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(
+        `/api/search?q=${encodeURIComponent(query)}&limit=30&cursor=${encodeURIComponent(nextCursor)}`,
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      setResults((prev) => [...prev, ...(data.results ?? [])]);
+      setNextCursor(data.next_cursor ?? null);
+    } catch {
+      // silently fail for load more
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -64,7 +96,13 @@ export default function SearchPage() {
         </div>
       </form>
 
-      {searched && (
+      {error && (
+        <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
+          {error}
+        </div>
+      )}
+
+      {searched && !error && (
         <div>
           <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
             {totalCount}件の結果
@@ -79,9 +117,10 @@ export default function SearchPage() {
           ) : (
             <div className="space-y-2">
               {results.map((r) => (
-                <div
+                <Link
                   key={r.message.id}
-                  className="rounded-lg border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+                  href={`/channels/${r.message.channel_id}/messages/${r.message.id}`}
+                  className="block rounded-lg border border-zinc-200 bg-white p-4 transition-colors hover:border-blue-300 hover:bg-blue-50/50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-700 dark:hover:bg-blue-900/10"
                 >
                   <div className="mb-2 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                     <span># {r.message.channel_name}</span>
@@ -93,7 +132,7 @@ export default function SearchPage() {
                     </span>
                     {r.message.feedback_count > 0 && (
                       <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                        📝 {r.message.feedback_count}
+                        {r.message.feedback_count}件
                       </span>
                     )}
                   </div>
@@ -101,8 +140,20 @@ export default function SearchPage() {
                     {r.message.text.slice(0, 200)}
                     {r.message.text.length > 200 ? "..." : ""}
                   </p>
-                </div>
+                </Link>
               ))}
+
+              {nextCursor && (
+                <div className="pt-4 text-center">
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="rounded-lg border border-zinc-300 bg-white px-6 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  >
+                    {loadingMore ? "読み込み中..." : "さらに読み込む"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

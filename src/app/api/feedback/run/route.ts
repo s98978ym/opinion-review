@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
     if (message.includes("短すぎます") || message.includes("not found")) {
       return badRequest(message);
     }
+    if (message.includes("タイムアウト") || message.includes("レート制限")) {
+      return NextResponse.json({ error: message }, { status: 503 });
+    }
     return serverError(message);
   }
 }

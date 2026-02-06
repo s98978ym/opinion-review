@@ -72,6 +72,7 @@ model Channel {
   messages  Message[]
 
   @@unique([workspaceId, slackChannelId])
+  @@index([workspaceId])
   @@map("channels")
 }
 
@@ -95,6 +96,8 @@ model Message {
   feedbackRuns FeedbackRun[]
 
   @@unique([channelId, slackTs])
+  @@index([userId, slackPostedAt])
+  @@index([channelId, slackPostedAt])
   @@map("messages")
 }
 
@@ -133,6 +136,8 @@ model FeedbackRun {
   message Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
   preset  FeedbackPreset @relation(fields: [presetId], references: [id])
 
+  @@index([userId, createdAt])
+  @@index([messageId])
   @@map("feedback_runs")
 }
 
@@ -148,5 +153,6 @@ model AuditLog {
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([userId, createdAt])
   @@map("audit_logs")
 }

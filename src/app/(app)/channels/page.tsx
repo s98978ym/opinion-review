@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { ChannelList } from "@/components/channel-list";
+import { SyncChannelsButton } from "@/components/sync-button";
 
 export default async function ChannelsPage() {
   const session = await auth();
@@ -39,7 +40,7 @@ export default async function ChannelsPage() {
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
           チャンネル一覧
         </h1>
-        <SyncButton />
+        <SyncChannelsButton />
       </div>
       {channels.length === 0 ? (
         <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
@@ -54,28 +55,5 @@ export default async function ChannelsPage() {
         <ChannelList channels={channelData} />
       )}
     </div>
-  );
-}
-
-function SyncButton() {
-  return (
-    <form
-      action={async () => {
-        "use server";
-        const session = await auth();
-        if (!session?.user?.id) return;
-        const { syncChannels } = await import("@/lib/slack");
-        await syncChannels(session.user.id);
-        const { redirect: redir } = await import("next/navigation");
-        redir("/channels");
-      }}
-    >
-      <button
-        type="submit"
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-      >
-        同期
-      </button>
-    </form>
   );
 }

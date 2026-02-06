@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { slackMrkdwnToHtml } from "@/lib/slack-markdown";
 
@@ -14,12 +15,47 @@ interface Message {
 }
 
 export function MessageList({
-  messages,
+  messages: initialMessages,
   channelId,
+  initialNextCursor = null,
 }: {
   messages: Message[];
   channelId: string;
+  initialNextCursor?: string | null;
 }) {
+  const [messages, setMessages] = useState(initialMessages);
+  const [nextCursor, setNextCursor] = useState(initialNextCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  async function handleLoadMore() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(
+        `/api/messages?channel_id=${channelId}&limit=50&cursor=${encodeURIComponent(nextCursor)}`,
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const newMessages: Message[] = (data.messages ?? []).map(
+        (m: Record<string, unknown>) => ({
+          id: m.id,
+          text: m.text,
+          slackPostedAt: m.slack_posted_at,
+          slackThreadTs: m.slack_thread_ts,
+          isEdited: m.is_edited,
+          hasAttachments: m.has_attachments,
+          feedbackCount: m.feedback_count,
+        }),
+      );
+      setMessages((prev) => [...prev, ...newMessages]);
+      setNextCursor(data.next_cursor ?? null);
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   // Group by date
   const grouped: Record<string, Message[]> = {};
   for (const msg of messages) {
@@ -54,6 +90,18 @@ export function MessageList({
           </div>
         </div>
       ))}
+
+      {nextCursor && (
+        <div className="pt-4 text-center">
+          <button
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="rounded-lg border border-zinc-300 bg-white px-6 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          >
+            {loadingMore ? "読み込み中..." : "さらに読み込む"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -96,7 +144,7 @@ function MessageCard({
         <div className="ml-4 flex flex-shrink-0 items-center gap-2">
           {message.feedbackCount > 0 && (
             <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-              📝 {message.feedbackCount}
+              {message.feedbackCount}件
             </span>
           )}
           <Link

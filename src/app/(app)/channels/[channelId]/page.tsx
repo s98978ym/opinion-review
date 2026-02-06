@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { MessageList } from "@/components/message-list";
+import { SyncMessagesButton } from "@/components/sync-button";
 import Link from "next/link";
 
 interface Props {
@@ -34,24 +35,20 @@ export default async function ChannelMessagesPage({ params, searchParams }: Prop
     where.slackPostedAt = { gte: dayStart, lte: dayEnd };
   }
 
+  const PAGE_SIZE = 50;
   const messages = await prisma.message.findMany({
     where,
     include: {
       _count: { select: { feedbackRuns: true } },
     },
     orderBy: { slackPostedAt: "desc" },
-    take: 100,
+    take: PAGE_SIZE + 1,
   });
 
-  // Group by date
-  const grouped: Record<string, typeof messages> = {};
-  for (const msg of messages) {
-    const dateKey = msg.slackPostedAt.toISOString().split("T")[0];
-    if (!grouped[dateKey]) grouped[dateKey] = [];
-    grouped[dateKey].push(msg);
-  }
+  const hasMore = messages.length > PAGE_SIZE;
+  const pageMessages = hasMore ? messages.slice(0, PAGE_SIZE) : messages;
 
-  const messageData = messages.map((m) => ({
+  const messageData = pageMessages.map((m) => ({
     id: m.id,
     text: m.text,
     slackPostedAt: m.slackPostedAt.toISOString(),
@@ -60,6 +57,10 @@ export default async function ChannelMessagesPage({ params, searchParams }: Prop
     hasAttachments: m.hasAttachments,
     feedbackCount: m._count.feedbackRuns,
   }));
+
+  const nextCursor = hasMore
+    ? pageMessages[pageMessages.length - 1].slackPostedAt.toISOString()
+    : null;
 
   return (
     <div>
@@ -79,7 +80,7 @@ export default async function ChannelMessagesPage({ params, searchParams }: Prop
         </div>
       </div>
 
-      {messages.length === 0 ? (
+      {pageMessages.length === 0 ? (
         <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
           <p className="text-zinc-500 dark:text-zinc-400">
             投稿がまだありません。
@@ -89,31 +90,12 @@ export default async function ChannelMessagesPage({ params, searchParams }: Prop
           </p>
         </div>
       ) : (
-        <MessageList messages={messageData} channelId={channelId} />
+        <MessageList
+          messages={messageData}
+          channelId={channelId}
+          initialNextCursor={nextCursor}
+        />
       )}
     </div>
-  );
-}
-
-function SyncMessagesButton({ channelId }: { channelId: string }) {
-  return (
-    <form
-      action={async () => {
-        "use server";
-        const session = await auth();
-        if (!session?.user?.id) return;
-        const { syncMessages } = await import("@/lib/slack");
-        await syncMessages(session.user.id, channelId);
-        const { redirect: redir } = await import("next/navigation");
-        redir(`/channels/${channelId}`);
-      }}
-    >
-      <button
-        type="submit"
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-      >
-        同期
-      </button>
-    </form>
   );
 }
