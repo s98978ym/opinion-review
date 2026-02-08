@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=414, initial-scale=1.0">
+<title>Pattern B: リッチメッセージ（フルビジュアル型）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    background: #7494C0;
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+  }
+  .phone-frame {
+    width: 414px;
+    min-height: 896px;
+    background: #1A1D21;
+    border-radius: 40px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .line-header {
+    background: #1A1D21;
+    padding: 60px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #2A2D31;
+  }
+  .line-header .back {
+    color: #5AC8FA;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .line-header .badge {
+    background: #FF3B30;
+    color: #fff;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+  .line-header .channel-name {
+    color: #fff;
+    font-size: 17px;
+    font-weight: 600;
+    flex: 1;
+    text-align: center;
+  }
+  .chat-area {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .message-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    max-width: 88%;
+  }
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FF6B35, #FF8C42);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    align-self: flex-start;
+  }
+  .timestamp {
+    font-size: 11px;
+    color: #666;
+    align-self: flex-end;
+    flex-shrink: 0;
+  }
+
+  /* Pattern B: Full Visual Rich Message */
+  .rich-message {
+    border-radius: 16px;
+    overflow: hidden;
+    width: 320px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  }
+
+  /* Top: Gradient banner with note branding */
+  .rm-header {
+    background: linear-gradient(135deg, #FF4500 0%, #FF6347 100%);
+    padding: 20px 20px 16px;
+    text-align: center;
+    position: relative;
+  }
+  .rm-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,0.05));
+  }
+  .rm-header .new-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 20px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+  .rm-header .note-logo {
+    font-size: 32px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 3px;
+  }
+  .rm-header .note-logo .plus {
+    color: #FFD700;
+  }
+  .rm-header .subtitle {
+    font-size: 14px;
+    color: rgba(255,255,255,0.9);
+    margin-top: 4px;
+    font-weight: 500;
+  }
+
+  /* Article section with white card */
+  .rm-article {
+    background: #fff;
+    padding: 0;
+  }
+  .rm-article-inner {
+    padding: 20px;
+  }
+  .rm-article .category-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #FFF5F0;
+    color: #FF4500;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    border-left: 3px solid #FF4500;
+  }
+  .rm-article .article-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1a1a1a;
+    line-height: 1.55;
+    margin-bottom: 4px;
+  }
+  .rm-article .article-title .accent {
+    color: #FF4500;
+  }
+  .rm-article .article-subtitle {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  /* Speaker card within article */
+  .speaker-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #F8F8FA;
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .speaker-card .photo {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #E8E8E8, #D0D0D0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .speaker-card .info .name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+  .speaker-card .info .title {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+  }
+  .speaker-card .info .company {
+    font-size: 10px;
+    color: #aaa;
+  }
+
+  /* Event info strip */
+  .rm-event-strip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #F8F8FA;
+    border-top: 1px solid #F0F0F0;
+  }
+  .rm-event-strip .number {
+    background: #FF4500;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rm-event-strip .event-text {
+    font-size: 11px;
+    color: #666;
+    line-height: 1.4;
+  }
+
+  /* CTA */
+  .rm-cta {
+    background: linear-gradient(135deg, #FF4500, #E63E00);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .rm-cta .text {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+  .rm-cta .arrow-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 12px;
+  }
+
+  /* Short intro bubble */
+  .intro-bubble {
+    background: #2A2D31;
+    color: #C8C8C8;
+    padding: 12px 16px;
+    border-radius: 18px 18px 18px 4px;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 4px;
+  }
+  .intro-bubble strong {
+    color: #FFB380;
+    font-weight: 600;
+  }
+
+  .pattern-label {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+<div class="pattern-label">Pattern B: フルビジュアルリッチメッセージ</div>
+<div class="phone-frame">
+  <div class="line-header">
+    <div class="back">&lt; <span class="badge">99+</span></div>
+    <div class="channel-name">FAM スポ...ョン・ラボ</div>
+    <div class="icons"></div>
+  </div>
+
+  <div class="chat-area">
+    <!-- Short intro text -->
+    <div class="message-row">
+      <div class="avatar">F</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="intro-bubble">
+          <strong>note 新着記事のお知らせ</strong><br>
+          現場で活かせるヒントが詰まった内容です!
+        </div>
+
+        <!-- Full Visual Rich Message -->
+        <div class="rich-message">
+          <!-- Header with note branding -->
+          <div class="rm-header">
+            <div class="new-badge">New Article</div>
+            <div class="note-logo">no<span class="plus">+</span>e</div>
+            <div class="subtitle">記事を更新しました</div>
+          </div>
+
+          <!-- Article Content -->
+          <div class="rm-article">
+            <div class="rm-article-inner">
+              <div class="category-tag">&#x1F4AC; コミュニケーション</div>
+              <div class="article-title">
+                少人数対話で体得する<br>
+                <span class="accent">「コミュニケーションの重要性」</span>
+              </div>
+              <div class="article-subtitle">
+                ーアスリートの栄養サポートで不可欠なことー
+              </div>
+
+              <!-- Speaker -->
+              <div class="speaker-card">
+                <div class="photo">&#x1F469;</div>
+                <div class="info">
+                  <div class="name">大前 恵</div>
+                  <div class="title">スポーツ栄養アドバイザー</div>
+                  <div class="company">株式会社 明治</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Event strip -->
+            <div class="rm-event-strip">
+              <div class="number">#6</div>
+              <div class="event-text">
+                アスリートとのカウンセリング・<br>
+                コミュニケーション サロン イベントレポート
+              </div>
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div class="rm-cta">
+            <span class="text">記事を読む</span>
+            <span class="arrow-circle">&#x25B6;</span>
+          </div>
+        </div>
+      </div>
+      <div class="timestamp">18:00</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

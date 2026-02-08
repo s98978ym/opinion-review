@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=414, initial-scale=1.0">
+<title>Pattern A: テキスト + リッチカード（現行改善版）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    background: #7494C0;
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+  }
+  .phone-frame {
+    width: 414px;
+    min-height: 896px;
+    background: #1A1D21;
+    border-radius: 40px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  /* LINE Header */
+  .line-header {
+    background: #1A1D21;
+    padding: 60px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #2A2D31;
+  }
+  .line-header .back {
+    color: #5AC8FA;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .line-header .badge {
+    background: #FF3B30;
+    color: #fff;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+  .line-header .channel-name {
+    color: #fff;
+    font-size: 17px;
+    font-weight: 600;
+    flex: 1;
+    text-align: center;
+  }
+  .line-header .icons {
+    display: flex;
+    gap: 16px;
+    color: #fff;
+    font-size: 20px;
+  }
+  /* Chat Area */
+  .chat-area {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  /* Message bubble */
+  .message-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    max-width: 85%;
+  }
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FF6B35, #FF8C42);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    align-self: flex-start;
+  }
+  .bubble {
+    background: #2A2D31;
+    color: #E8E8E8;
+    padding: 14px 16px;
+    border-radius: 18px 18px 18px 4px;
+    font-size: 15px;
+    line-height: 1.65;
+    letter-spacing: 0.02em;
+  }
+  .bubble .label {
+    display: inline-block;
+    background: #FF6B35;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+  }
+  .bubble .title-text {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  .bubble .body-text {
+    font-size: 14px;
+    color: #C8C8C8;
+    line-height: 1.7;
+  }
+  .timestamp {
+    font-size: 11px;
+    color: #666;
+    align-self: flex-end;
+    flex-shrink: 0;
+  }
+  /* Rich Card */
+  .rich-card {
+    max-width: 85%;
+    margin-left: 48px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #2A2D31;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+  .rich-card .card-hero {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    background: linear-gradient(135deg, #FF4500 0%, #FF6B35 50%, #FF8C42 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .rich-card .note-logo {
+    font-size: 28px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  .rich-card .note-logo .plus {
+    color: #FFD700;
+  }
+  .rich-card .card-hero .updated {
+    font-size: 13px;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 16px;
+  }
+  .rich-card .article-preview {
+    background: #fff;
+    border-radius: 8px;
+    margin: 0 16px;
+    padding: 12px;
+    position: absolute;
+    bottom: -30px;
+    left: 4px;
+    right: 4px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  }
+  .rich-card .article-preview .org {
+    font-size: 10px;
+    color: #666;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+  .rich-card .article-preview .org .dot {
+    width: 6px;
+    height: 6px;
+    background: #4ECDC4;
+    border-radius: 50%;
+  }
+  .rich-card .article-preview .article-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+    line-height: 1.5;
+  }
+  .rich-card .article-preview .article-title .highlight {
+    color: #FF4500;
+    font-size: 16px;
+  }
+  .rich-card .article-preview .article-sub {
+    font-size: 11px;
+    color: #888;
+    margin-top: 4px;
+  }
+  .rich-card .card-body {
+    padding: 44px 16px 16px;
+  }
+  .rich-card .speaker-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .rich-card .speaker-photo {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ddd, #bbb);
+    border: 2px solid #FF6B35;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+  .rich-card .speaker-info .name {
+    color: #E8E8E8;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .rich-card .speaker-info .role {
+    color: #888;
+    font-size: 11px;
+  }
+  .rich-card .event-date {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 12px;
+    padding-top: 8px;
+    border-top: 1px solid #3A3D41;
+  }
+  /* CTA Button */
+  .cta-bar {
+    background: #FF4500;
+    padding: 14px 16px;
+    text-align: center;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .cta-bar .arrow {
+    font-size: 18px;
+  }
+  /* Pattern Label */
+  .pattern-label {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+<div class="pattern-label">Pattern A: テキスト + リッチカード</div>
+<div class="phone-frame">
+  <!-- Header -->
+  <div class="line-header">
+    <div class="back">&lt; <span class="badge">99+</span></div>
+    <div class="channel-name">FAM スポ...ョン・ラボ</div>
+    <div class="icons">&#x1F50D; &#x2630;</div>
+  </div>
+
+  <!-- Chat -->
+  <div class="chat-area">
+    <!-- Text Message -->
+    <div class="message-row">
+      <div class="avatar">F</div>
+      <div class="bubble">
+        <div class="label">NEW ARTICLE</div>
+        <div class="title-text">note更新しました!</div>
+        <div class="body-text">
+          会場の雰囲気や、選手の主体性を引き出すために大切にしているコミュニケーションの考え方、実践ケースからの学び、参加者の声をご紹介しています<br><br>
+          知識を伝えるだけではない、現場で活かせるヒントが詰まった内容です<br><br>
+          今すぐチェックしてくださいね
+        </div>
+      </div>
+      <div class="timestamp">18:00</div>
+    </div>
+
+    <!-- Rich Card -->
+    <div class="rich-card">
+      <div class="card-hero">
+        <div class="note-logo">no<span class="plus">+</span>e</div>
+        <div class="updated">更新しました</div>
+        <div class="article-preview">
+          <div class="org"><span class="dot"></span> FAM Sports & Nutrition Lab</div>
+          <div class="article-title">
+            少人数対話で体得する<br>
+            <span class="highlight">「コミュニケーションの重要性」</span>
+          </div>
+          <div class="article-sub">ーアスリートの栄養サポートで不可欠なことー</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="speaker-row">
+          <div class="speaker-photo">&#x1F469;</div>
+          <div class="speaker-info">
+            <div class="name">大前 恵</div>
+            <div class="role">スポーツ栄養アドバイザー / 株式会社 明治</div>
+          </div>
+        </div>
+        <div class="event-date">#6 | 2025年11月28日「アスリートとのカウンセリング・コミュニケーション サロン」イベントレポート</div>
+      </div>
+      <div class="cta-bar">
+        スポーツ栄養アドバイザーを目指す人必読! <span class="arrow">&#x25B6;</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

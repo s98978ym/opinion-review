@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=414, initial-scale=1.0">
+<title>Pattern C: Flex Message カルーセル型</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    background: #7494C0;
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+  }
+  .phone-frame {
+    width: 414px;
+    min-height: 896px;
+    background: #1A1D21;
+    border-radius: 40px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .line-header {
+    background: #1A1D21;
+    padding: 60px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #2A2D31;
+  }
+  .line-header .back {
+    color: #5AC8FA;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .line-header .badge {
+    background: #FF3B30;
+    color: #fff;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+  .line-header .channel-name {
+    color: #fff;
+    font-size: 17px;
+    font-weight: 600;
+    flex: 1;
+    text-align: center;
+  }
+  .chat-area {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .message-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    max-width: 90%;
+  }
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FF6B35, #FF8C42);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .timestamp {
+    font-size: 11px;
+    color: #666;
+    align-self: flex-end;
+    flex-shrink: 0;
+  }
+
+  /* Pattern C: Flex Message - Magazine Style */
+  .flex-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 320px;
+  }
+
+  /* Greeting bubble - minimal */
+  .greeting-bubble {
+    background: #2A2D31;
+    color: #E8E8E8;
+    padding: 12px 16px;
+    border-radius: 18px 18px 18px 4px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* Magazine-style Flex Card */
+  .magazine-card {
+    border-radius: 16px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+  }
+
+  /* Hero image area - horizontal split */
+  .mc-hero {
+    display: flex;
+    height: 160px;
+    position: relative;
+  }
+  .mc-hero-left {
+    flex: 1;
+    background: linear-gradient(160deg, #FF4500, #FF6B35);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 16px 20px;
+    position: relative;
+  }
+  .mc-hero-left .eyecatch-number {
+    font-size: 48px;
+    font-weight: 900;
+    color: rgba(255,255,255,0.15);
+    position: absolute;
+    top: 8px;
+    left: 16px;
+    line-height: 1;
+  }
+  .mc-hero-left .note-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+    width: fit-content;
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+  .mc-hero-left .hero-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.55;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+  .mc-hero-left .hero-title .em {
+    font-size: 15px;
+    display: block;
+    margin-top: 2px;
+  }
+  .mc-hero-right {
+    width: 120px;
+    background: linear-gradient(135deg, #4ECDC4, #44A08D);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .mc-hero-right .speaker-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #E8E8E8, #C8C8C8);
+    border: 3px solid #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    margin-bottom: 6px;
+  }
+  .mc-hero-right .speaker-name {
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  }
+  .mc-hero-right .speaker-title {
+    color: rgba(255,255,255,0.85);
+    font-size: 9px;
+    text-align: center;
+    padding: 0 8px;
+  }
+
+  /* Content area */
+  .mc-content {
+    padding: 16px 20px;
+  }
+  .mc-content .section-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .mc-content .section-label .icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    background: #FFF0EB;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+  .mc-content .section-label .text {
+    font-size: 10px;
+    color: #FF4500;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Highlight points */
+  .mc-points {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .mc-point {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .mc-point .bullet {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FF4500, #FF6B35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .mc-point .point-text {
+    font-size: 13px;
+    color: #333;
+    line-height: 1.5;
+    font-weight: 500;
+  }
+
+  /* Tags row */
+  .mc-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .mc-tag {
+    background: #F5F5F7;
+    color: #666;
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  /* Footer with org info */
+  .mc-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #FAFAFA;
+    border-top: 1px solid #F0F0F0;
+  }
+  .mc-footer .org-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #4ECDC4, #44A08D);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .mc-footer .org-info {
+    flex: 1;
+  }
+  .mc-footer .org-name {
+    font-size: 11px;
+    color: #333;
+    font-weight: 600;
+  }
+  .mc-footer .org-desc {
+    font-size: 9px;
+    color: #999;
+  }
+  .mc-footer .event-num {
+    background: #FF4500;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  /* Dual CTA buttons */
+  .mc-cta-area {
+    display: flex;
+    border-top: 1px solid #F0F0F0;
+  }
+  .mc-cta-btn {
+    flex: 1;
+    padding: 14px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+  }
+  .mc-cta-btn.primary {
+    background: linear-gradient(135deg, #FF4500, #E63E00);
+    color: #fff;
+  }
+  .mc-cta-btn.secondary {
+    background: #fff;
+    color: #FF4500;
+    border-right: 1px solid #F0F0F0;
+  }
+  .mc-cta-btn .icon {
+    font-size: 14px;
+  }
+
+  /* Quick reply buttons */
+  .quick-replies {
+    display: flex;
+    gap: 8px;
+    padding: 8px 0;
+    overflow-x: auto;
+    margin-left: 48px;
+  }
+  .quick-reply {
+    background: transparent;
+    border: 1px solid #444;
+    color: #5AC8FA;
+    font-size: 12px;
+    padding: 8px 14px;
+    border-radius: 20px;
+    white-space: nowrap;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .pattern-label {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+<div class="pattern-label">Pattern C: マガジン型 Flex Message</div>
+<div class="phone-frame">
+  <div class="line-header">
+    <div class="back">&lt; <span class="badge">99+</span></div>
+    <div class="channel-name">FAM スポ...ョン・ラボ</div>
+    <div class="icons"></div>
+  </div>
+
+  <div class="chat-area">
+    <div class="message-row">
+      <div class="avatar">F</div>
+      <div class="flex-container">
+        <!-- Greeting bubble -->
+        <div class="greeting-bubble">
+          note新着記事をお届けします!<br>
+          現場で活かせるヒントが詰まった内容です
+        </div>
+
+        <!-- Magazine-style Card -->
+        <div class="magazine-card">
+          <!-- Hero: Split layout -->
+          <div class="mc-hero">
+            <div class="mc-hero-left">
+              <div class="eyecatch-number">#6</div>
+              <div class="note-badge">&#x1F4DD; note更新</div>
+              <div class="hero-title">
+                少人数対話で体得する
+                <span class="em">「コミュニケーションの重要性」</span>
+              </div>
+            </div>
+            <div class="mc-hero-right">
+              <div class="speaker-avatar">&#x1F469;</div>
+              <div class="speaker-name">大前 恵</div>
+              <div class="speaker-title">スポーツ栄養<br>アドバイザー</div>
+            </div>
+          </div>
+
+          <!-- Content area with points -->
+          <div class="mc-content">
+            <div class="section-label">
+              <span class="icon">&#x1F4A1;</span>
+              <span class="text">この記事のポイント</span>
+            </div>
+            <div class="mc-points">
+              <div class="mc-point">
+                <span class="bullet">1</span>
+                <span class="point-text">選手の主体性を引き出すコミュニケーション術</span>
+              </div>
+              <div class="mc-point">
+                <span class="bullet">2</span>
+                <span class="point-text">実践ケースからの学びと参加者の声</span>
+              </div>
+              <div class="mc-point">
+                <span class="bullet">3</span>
+                <span class="point-text">会場の雰囲気と対話の実際</span>
+              </div>
+            </div>
+            <div class="mc-tags">
+              <span class="mc-tag">#アスリート栄養</span>
+              <span class="mc-tag">#コミュニケーション</span>
+              <span class="mc-tag">#カウンセリング</span>
+              <span class="mc-tag">#サロン</span>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="mc-footer">
+            <div class="org-icon">F</div>
+            <div class="org-info">
+              <div class="org-name">FAM Sports & Nutrition Lab</div>
+              <div class="org-desc">2025年11月28日 イベントレポート</div>
+            </div>
+            <div class="event-num">#6</div>
+          </div>
+
+          <!-- Dual CTA -->
+          <div class="mc-cta-area">
+            <div class="mc-cta-btn secondary">
+              <span class="icon">&#x1F516;</span>
+              保存する
+            </div>
+            <div class="mc-cta-btn primary">
+              記事を読む
+              <span class="icon">&#x25B6;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="timestamp">18:00</div>
+    </div>
+
+    <!-- Quick reply suggestions -->
+    <div class="quick-replies">
+      <div class="quick-reply">&#x1F4D6; 過去の記事一覧</div>
+      <div class="quick-reply">&#x1F514; 通知設定</div>
+      <div class="quick-reply">&#x1F4AC; お問い合わせ</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
